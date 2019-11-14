@@ -5,5 +5,7 @@ import System.Environment
 
 main :: IO ()
 main = do
-  (expr:_) <- getArgs
-  putStrLn $ readExpr expr
+  (fileName:_) <- getArgs
+  content <- readFile fileName
+  putStrLn content
+  putStrLn $ readExpr content

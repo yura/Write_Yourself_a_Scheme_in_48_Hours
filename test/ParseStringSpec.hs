@@ -2,11 +2,9 @@ module ParseStringSpec (main, spec) where
 
 import Test.Hspec
 import Test.Hspec.Parsec
---import Text.Parsec
---import Text.Parsec.String (Parser)
+import Text.Parsec
 
 import Lib
---import Text.ParserCombinators.Parsec hiding (spaces)
 
 main :: IO ()
 main = hspec spec
@@ -19,5 +17,18 @@ spec = do
     it "parses a simple string" $ do
       parseString' "\"hello\"" `shouldParse` (String "hello")
 
+    it "parses string with escaped backslash" $ do
+      parseString' "\" \\\\ \"" `shouldParse` (String " \\ ")
+
     it "parses string with escaped double quote" $ do
-      parseString' "\"hello \\\"\"" `shouldParse` (String "hello \"")
+      parseString' "\" \\\" \"" `shouldParse` (String " \" ")
+
+    it "parses string with '\\n'" $ do
+      parseString' "\" \\n \"" `shouldParse` (String " \n ")
+
+    it "parses string with '\\r'" $ do
+      parseString' "\" \\r \"" `shouldParse` (String " \r ")
+
+    it "parses string with '\\t'" $ do
+      parseString' "\" \\t \"" `shouldParse` (String " \t ")
+

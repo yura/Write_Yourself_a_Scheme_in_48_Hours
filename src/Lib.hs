@@ -1,5 +1,5 @@
 module Lib
-    ( symbol, readExpr, LispVal(..), parseString
+    ( symbol, readExpr, LispVal(..), parseString, escapedChars
     ) where
 
 import Control.Monad
@@ -28,10 +28,19 @@ symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
 spaces :: Parser ()
 spaces = skipMany1 space
 
+escapedChars = do char '\\'
+                  x <- oneOf "\\\"nrt"
+                  return $ case x of
+                    '\\' -> x
+                    '"' -> x
+                    'n'  -> '\n'
+                    'r'  -> '\r'
+                    't'  -> '\t'
+
 parseString :: Parser LispVal
 parseString = do
   char '"'
-  x <- many $ (char '\\' >> char '"') <|> noneOf "\"\\"
+  x <- many $ escapedChars <|> noneOf "\"\\"
   char '"'
   return $ String x
 
@@ -64,6 +73,6 @@ parseExpr = parseString
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
-  Left err -> "No match" ++ show err
-  Right val -> "Value found"
+  Left err -> "No match: " ++ show err
+  Right val -> "Value found: " ++ show val
 
