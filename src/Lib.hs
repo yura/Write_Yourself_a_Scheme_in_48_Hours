@@ -1,5 +1,5 @@
 module Lib
-    ( symbol, readExpr, LispVal(..), parseString, escapedChars, readBin, parseNumber
+    ( symbol, readExpr, LispVal(..), parseMacro, parseString, escapedChars, readBin, parseNumber, parseExpr
     ) where
 
 import Control.Monad
@@ -24,12 +24,27 @@ instance Show LispVal where
 instance Eq LispVal where
    String x == String y = x == y
    Number x == Number y = x == y
+   Bool x == Bool y = x == y
 
 symbol :: Parser Char
-symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
+symbol = oneOf "!$%&|*+-/:<=>?@^_~"
 
 spaces :: Parser ()
 spaces = skipMany1 space
+
+parseMacro :: Parser LispVal
+parseMacro = do
+  char '#'
+  prefix <- oneOf "tfbodx"
+  x <- many (digit <|> letter)
+
+  return $ case prefix of
+    't' -> Bool True
+    'f' -> Bool False
+    'b' -> (Number . readBin) x
+    'o' -> (Number . fst . head . readOct) x
+    'x' -> (Number . fst . head . readHex) x
+    _   -> (Number . read) x
 
 escapedChars = do char '\\'
                   x <- oneOf "\\\"nrt"
@@ -53,23 +68,17 @@ parseAtom = do
   rest <- many (letter <|> digit <|> symbol)
   let atom = first:rest
   return $ case atom of
-    "#t" -> Bool True
-    "#f" -> Bool False
     _    -> Atom atom
 
 readBin :: String -> Integer
 readBin = (fst . head . readInt 2 isDigit digitToInt)
 
-parseNumberWithPrefix :: Parser LispVal
-parseNumberWithPrefix = do
-  char '#'
-  prefix <- oneOf "bodx"
-  x <- many1 (digit <|> oneOf "abcdef") -- #FIXME: x can have letters when it is in hex format only
-  (return . Number) $ case prefix of
-    'b' -> readBin x
-    'o' -> (fst . head . readOct) x
-    'd' -> read x
-    'x' -> (fst . head . readHex) x
+--parseNumberWithPrefix :: Parser LispVal
+--parseNumberWithPrefix = do
+--  char '#'
+--  prefix <- oneOf "bodx"
+--  x <- many1 (digit <|> oneOf "abcdef") -- #FIXME: x can have letters when it is in hex format only
+--  (return . Number) $ case prefix of
 
 parseNumberWithoutPrefix :: Parser LispVal
 parseNumberWithoutPrefix = do
@@ -85,12 +94,13 @@ parseNumberWithoutPrefix = do
 -- using do-notation
 parseNumber :: Parser LispVal
 parseNumber =
-  parseNumberWithPrefix <|> parseNumberWithoutPrefix
+  parseNumberWithoutPrefix
 
 parseExpr :: Parser LispVal
-parseExpr = parseString
-        <|> parseAtom
+parseExpr = parseMacro
         <|> parseNumber
+        <|> parseAtom
+        <|> parseString
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
