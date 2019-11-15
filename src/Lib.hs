@@ -1,8 +1,10 @@
 module Lib
-    ( symbol, readExpr, LispVal(..), parseString, escapedChars
+    ( symbol, readExpr, LispVal(..), parseString, escapedChars, readBin, parseNumber
     ) where
 
 import Control.Monad
+import Data.Char (isDigit, digitToInt)
+import Numeric (readInt, readOct, readHex)
 import Text.ParserCombinators.Parsec hiding (spaces)
 
 data LispVal = Atom String
@@ -21,6 +23,7 @@ instance Show LispVal where
 
 instance Eq LispVal where
    String x == String y = x == y
+   Number x == Number y = x == y
 
 symbol :: Parser Char
 symbol = oneOf "!#$%&|*+-/:<=>?@^_~"
@@ -54,17 +57,35 @@ parseAtom = do
     "#f" -> Bool False
     _    -> Atom atom
 
-parseNumber :: Parser LispVal
+readBin :: String -> Integer
+readBin = (fst . head . readInt 2 isDigit digitToInt)
+
+parseNumberWithPrefix :: Parser LispVal
+parseNumberWithPrefix = do
+  char '#'
+  prefix <- oneOf "bodx"
+  x <- many1 (digit <|> oneOf "abcdef") -- #FIXME: x can have letters when it is in hex format only
+  (return . Number) $ case prefix of
+    'b' -> readBin x
+    'o' -> (fst . head . readOct) x
+    'd' -> read x
+    'x' -> (fst . head . readHex) x
+
+parseNumberWithoutPrefix :: Parser LispVal
+parseNumberWithoutPrefix = do
+  x <- many1 digit
+  (return . Number . read) x
+
 -- using liftM
 --parseNumber = liftM (Number . read) $ many1 digit
 
--- using do-notation
---parseNumber = do
---  x <- many1 digit
---  (return . Number . read) x
-
 -- Using >>= (bind) operator
-parseNumber = (many1 digit) >>= return . Number . read
+--parseNumber = (many1 digit) >>= return . Number . read
+
+-- using do-notation
+parseNumber :: Parser LispVal
+parseNumber =
+  parseNumberWithPrefix <|> parseNumberWithoutPrefix
 
 parseExpr :: Parser LispVal
 parseExpr = parseString
