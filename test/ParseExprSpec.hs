@@ -26,3 +26,12 @@ spec = do
     it "parses number value in bin format (with #b prefix)" $ do
       parseExpr' "#b1101" `shouldParse` (Number 13)
 
+    it "parses character value" $ do
+      parseExpr' "#\\(" `shouldParse` (Character '(')
+
+    it "parses character name 'space'" $ do
+      parseExpr' "#\\space" `shouldParse` (Character ' ')
+
+    it "parses character name 'newline'" $ do
+      parseExpr' "#\\newline" `shouldParse` (Character '\n')
+

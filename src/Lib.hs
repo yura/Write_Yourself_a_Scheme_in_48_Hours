@@ -1,5 +1,5 @@
 module Lib
-    ( symbol, readExpr, LispVal(..), parseMacro, parseString, escapedChars, readBin, parseNumber, parseExpr
+    ( symbol, readExpr, LispVal(..), parseCharacter, parseMacro, parseString, escapedChars, readBin, parseNumber, parseExpr
     ) where
 
 import Control.Monad
@@ -8,6 +8,7 @@ import Numeric (readInt, readOct, readHex)
 import Text.ParserCombinators.Parsec hiding (spaces)
 
 data LispVal = Atom String
+             | Character Char
              | List [LispVal]
              | DottedList [LispVal] LispVal
              | Number Integer
@@ -20,17 +21,30 @@ instance Show LispVal where
   show (Number a) = show a
   show (String a) = show a
   show (Bool a) = show a
+  show (Character a) = show a
 
 instance Eq LispVal where
    String x == String y = x == y
    Number x == Number y = x == y
    Bool x == Bool y = x == y
+   Character x == Character y = x == y
 
 symbol :: Parser Char
 symbol = oneOf "!$%&|*+-/:<=>?@^_~"
 
 spaces :: Parser ()
 spaces = skipMany1 space
+
+parseCharacter :: Parser LispVal
+parseCharacter = do
+  try $ string "#\\"
+  value <- try (string "space" <|> string "newline")
+          <|> do
+                 x <- anyChar; notFollowedBy alphaNum; return [x]
+  return $ Character $ case value of
+    "space"   -> ' '
+    "newline" -> '\n'
+    otherwise -> (value !! 0)
 
 parseMacro :: Parser LispVal
 parseMacro = do
@@ -39,12 +53,12 @@ parseMacro = do
   x <- many (digit <|> letter)
 
   return $ case prefix of
-    't' -> Bool True
-    'f' -> Bool False
-    'b' -> (Number . readBin) x
-    'o' -> (Number . fst . head . readOct) x
-    'x' -> (Number . fst . head . readHex) x
-    _   -> (Number . read) x
+    't'  -> Bool True
+    'f'  -> Bool False
+    'b'  -> (Number . readBin) x
+    'o'  -> (Number . fst . head . readOct) x
+    'x'  -> (Number . fst . head . readHex) x
+    _    -> (Number . read) x
 
 escapedChars = do char '\\'
                   x <- oneOf "\\\"nrt"
@@ -97,7 +111,8 @@ parseNumber =
   parseNumberWithoutPrefix
 
 parseExpr :: Parser LispVal
-parseExpr = parseMacro
+parseExpr = try parseCharacter
+        <|> parseMacro
         <|> parseNumber
         <|> parseAtom
         <|> parseString
