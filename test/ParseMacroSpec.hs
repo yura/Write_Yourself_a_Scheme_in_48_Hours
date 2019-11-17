@@ -14,12 +14,6 @@ spec = do
   describe "parseMacro" $ do
     let parseMacro' = parse parseMacro ""
 
-    it "parses boolean true value" $ do
-      parseMacro' "#t" `shouldParse` (Bool True)
-
-    it "parses boolean false value" $ do
-      parseMacro' "#f" `shouldParse` (Bool False)
-
     it "parses number in binary format" $ do
       parseMacro' "#b1101" `shouldParse` Number 13
 

@@ -1,5 +1,5 @@
 module Lib
-    ( symbol, readExpr, LispVal(..), parseCharacter, parseMacro, parseString, escapedChars, readBin, parseNumber, parseExpr
+    ( symbol, readExpr, LispVal(..), parseBool, parseCharacter, parseMacro, parseString, escapedChars, readBin, parseNumber, parseExpr
     ) where
 
 import Control.Monad
@@ -35,6 +35,14 @@ symbol = oneOf "!$%&|*+-/:<=>?@^_~"
 spaces :: Parser ()
 spaces = skipMany1 space
 
+parseBool :: Parser LispVal
+parseBool = do
+  char '#'
+  value <- (char 't' <|> char 'f')
+  return $ Bool $ case value of
+    't' -> True
+    _   -> False
+
 parseCharacter :: Parser LispVal
 parseCharacter = do
   try $ string "#\\"
@@ -49,12 +57,10 @@ parseCharacter = do
 parseMacro :: Parser LispVal
 parseMacro = do
   char '#'
-  prefix <- oneOf "tfbodx"
+  prefix <- oneOf "bodx"
   x <- many (digit <|> letter)
 
   return $ case prefix of
-    't'  -> Bool True
-    'f'  -> Bool False
     'b'  -> (Number . readBin) x
     'o'  -> (Number . fst . head . readOct) x
     'x'  -> (Number . fst . head . readHex) x
@@ -111,7 +117,8 @@ parseNumber =
   parseNumberWithoutPrefix
 
 parseExpr :: Parser LispVal
-parseExpr = try parseCharacter
+parseExpr = try parseBool
+        <|> try parseCharacter
         <|> parseMacro
         <|> parseNumber
         <|> parseAtom
