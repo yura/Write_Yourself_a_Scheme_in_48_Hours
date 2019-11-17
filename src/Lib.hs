@@ -7,12 +7,13 @@ module Lib
     , parseDecimalWithPrefix
     , parseHex
     , parseNumber
+    , parseFloat
     , parseExpr
     ) where
 
 import Control.Monad
 import Data.Char (isDigit, digitToInt)
-import Numeric (readInt, readOct, readHex)
+import Numeric (readInt, readOct, readHex, readFloat)
 import Text.Parsec.Char
 import Text.ParserCombinators.Parsec hiding (spaces)
 
@@ -21,6 +22,7 @@ data LispVal = Atom String
              | List [LispVal]
              | DottedList [LispVal] LispVal
              | Number Integer
+             | Float Double
              | String String
              | Bool Bool
 
@@ -28,14 +30,16 @@ instance Show LispVal where
   show (Atom a) = show a
   show (List a) = show a
   show (Number a) = show a
+  show (Float a) = show a
   show (String a) = show a
   show (Bool a) = show a
   show (Character a) = show a
 
 instance Eq LispVal where
-   String x == String y = x == y
-   Number x == Number y = x == y
-   Bool x == Bool y = x == y
+   String x    == String y    = x == y
+   Number x    == Number y    = x == y
+   Float x     == Float y     = x == y
+   Bool x      == Bool y      = x == y
    Character x == Character y = x == y
 
 -- using liftM
@@ -99,6 +103,13 @@ parseHex = do
 parseNumber :: Parser LispVal
 parseNumber = parseDecimal <|> parseDecimalWithPrefix <|> parseBin <|> parseOct <|> parseHex
 
+parseFloat :: Parser LispVal
+parseFloat = do
+  z <- (many1 digit)
+  char '.'
+  d <- (many1 digit)
+  (return . Float . fst . head . readFloat) (z ++ "." ++ d)
+
 escapedChars = do char '\\'
                   x <- oneOf "\\\"nrt"
                   return $ case x of
@@ -126,6 +137,7 @@ parseString = do
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
         <|> parseString
+        <|> try parseFloat
         <|> try parseNumber
         <|> try parseBool
         <|> try parseCharacter

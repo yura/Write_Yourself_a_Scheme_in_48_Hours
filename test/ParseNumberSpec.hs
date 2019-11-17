@@ -77,4 +77,3 @@ spec = do
 
     it "parses number in decimal format without prefix" $ do
       parseNumber' "#xff" `shouldParse` Number 255
-
