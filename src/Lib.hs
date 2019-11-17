@@ -1,10 +1,19 @@
 module Lib
-    ( symbol, readExpr, LispVal(..), parseBool, parseCharacter, parseMacro, parseString, escapedChars, readBin, parseNumber, parseExpr
+    ( symbol, readExpr, LispVal(..), parseBool, parseCharacter, parseString, escapedChars
+    , readBin
+    , parseBin
+    , parseOct
+    , parseDecimal
+    , parseDecimalWithPrefix
+    , parseHex
+    , parseNumber
+    , parseExpr
     ) where
 
 import Control.Monad
 import Data.Char (isDigit, digitToInt)
 import Numeric (readInt, readOct, readHex)
+import Text.Parsec.Char
 import Text.ParserCombinators.Parsec hiding (spaces)
 
 data LispVal = Atom String
@@ -29,6 +38,16 @@ instance Eq LispVal where
    Bool x == Bool y = x == y
    Character x == Character y = x == y
 
+-- using liftM
+--parseNumber = liftM (Number . read) $ many1 digit
+
+-- Using >>= (bind) operator
+--parseNumber = (many1 digit) >>= return . Number . read
+
+-- using do-notation
+-- parseNumber = do x <- many1 digit
+--                 (return . Number . read) x
+
 symbol :: Parser Char
 symbol = oneOf "!$%&|*+-/:<=>?@^_~"
 
@@ -38,10 +57,7 @@ spaces = skipMany1 space
 parseBool :: Parser LispVal
 parseBool = do
   char '#'
-  value <- (char 't' <|> char 'f')
-  return $ Bool $ case value of
-    't' -> True
-    _   -> False
+  (char 't' >> return (Bool True)) <|> (char 'f' >> return (Bool False))
 
 parseCharacter :: Parser LispVal
 parseCharacter = do
@@ -54,17 +70,34 @@ parseCharacter = do
     "newline" -> '\n'
     otherwise -> (value !! 0)
 
-parseMacro :: Parser LispVal
-parseMacro = do
-  char '#'
-  prefix <- oneOf "bodx"
-  x <- many (digit <|> letter)
+parseDecimal :: Parser LispVal
+parseDecimal = many1 digit >>= (return . Number . read)
 
-  return $ case prefix of
-    'b'  -> (Number . readBin) x
-    'o'  -> (Number . fst . head . readOct) x
-    'x'  -> (Number . fst . head . readHex) x
-    _    -> (Number . read) x
+parseDecimalWithPrefix :: Parser LispVal
+parseDecimalWithPrefix = do
+  try (string "#d")
+  many1 digit >>= (return . Number . read)
+
+readBin :: String -> Integer
+readBin = (fst . head . readInt 2 isDigit digitToInt)
+
+parseBin :: Parser LispVal
+parseBin = do
+  try $ string "#b"
+  many1 (oneOf "01") >>= return . Number . readBin
+
+parseOct :: Parser LispVal
+parseOct = do
+  try $ string "#o"
+  many1 octDigit >>= return . Number . fst . head . readOct
+
+parseHex :: Parser LispVal
+parseHex = do
+  try $ string "#x"
+  many hexDigit >>= return . Number . fst . head . readHex
+
+parseNumber :: Parser LispVal
+parseNumber = parseDecimal <|> parseDecimalWithPrefix <|> parseBin <|> parseOct <|> parseHex
 
 escapedChars = do char '\\'
                   x <- oneOf "\\\"nrt"
@@ -75,13 +108,6 @@ escapedChars = do char '\\'
                     'r'  -> '\r'
                     't'  -> '\t'
 
-parseString :: Parser LispVal
-parseString = do
-  char '"'
-  x <- many $ escapedChars <|> noneOf "\"\\"
-  char '"'
-  return $ String x
-
 parseAtom :: Parser LispVal
 parseAtom = do
   first <- letter <|> symbol
@@ -90,39 +116,19 @@ parseAtom = do
   return $ case atom of
     _    -> Atom atom
 
-readBin :: String -> Integer
-readBin = (fst . head . readInt 2 isDigit digitToInt)
-
---parseNumberWithPrefix :: Parser LispVal
---parseNumberWithPrefix = do
---  char '#'
---  prefix <- oneOf "bodx"
---  x <- many1 (digit <|> oneOf "abcdef") -- #FIXME: x can have letters when it is in hex format only
---  (return . Number) $ case prefix of
-
-parseNumberWithoutPrefix :: Parser LispVal
-parseNumberWithoutPrefix = do
-  x <- many1 digit
-  (return . Number . read) x
-
--- using liftM
---parseNumber = liftM (Number . read) $ many1 digit
-
--- Using >>= (bind) operator
---parseNumber = (many1 digit) >>= return . Number . read
-
--- using do-notation
-parseNumber :: Parser LispVal
-parseNumber =
-  parseNumberWithoutPrefix
+parseString :: Parser LispVal
+parseString = do
+  char '"'
+  x <- many $ escapedChars <|> noneOf "\"\\"
+  char '"'
+  return $ String x
 
 parseExpr :: Parser LispVal
-parseExpr = try parseBool
-        <|> try parseCharacter
-        <|> parseMacro
-        <|> parseNumber
-        <|> parseAtom
+parseExpr = parseAtom
         <|> parseString
+        <|> try parseNumber
+        <|> try parseBool
+        <|> try parseCharacter
 
 readExpr :: String -> String
 readExpr input = case parse parseExpr "lisp" input of
