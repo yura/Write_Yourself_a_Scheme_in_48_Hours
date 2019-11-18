@@ -4,6 +4,8 @@ import Test.Hspec
 import Test.Hspec.Parsec
 import Text.Parsec
 
+import Data.Complex
+
 import Lib
 
 main :: IO ()
@@ -37,6 +39,9 @@ spec = do
 
     it "parses number value in hex format (with #x prefix)" $ do
       parseExpr' "#xff" `shouldParse` (Number 255)
+
+    it "parses complex number" $ do
+      parseExpr' "10.2+7i" `shouldParse` Complex (10.2 :+ 7.0)
 
     it "parses character value" $ do
       parseExpr' "#\\(" `shouldParse` (Character '(')

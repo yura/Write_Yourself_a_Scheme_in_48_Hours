@@ -8,39 +8,45 @@ module Lib
     , parseHex
     , parseNumber
     , parseFloat
+    , parseComplex
     , parseExpr
     ) where
 
 import Control.Monad
 import Data.Char (isDigit, digitToInt)
+import Data.Complex
 import Numeric (readInt, readOct, readHex, readFloat)
 import Text.Parsec.Char
 import Text.ParserCombinators.Parsec hiding (spaces)
 
 data LispVal = Atom String
+             | Bool Bool
              | Character Char
-             | List [LispVal]
-             | DottedList [LispVal] LispVal
              | Number Integer
              | Float Double
+             | Complex (Complex Double)
              | String String
-             | Bool Bool
+             | List [LispVal]
+             | DottedList [LispVal] LispVal
 
 instance Show LispVal where
   show (Atom a) = show a
-  show (List a) = show a
+  show (Bool a) = show a
+  show (Character a) = show a
   show (Number a) = show a
   show (Float a) = show a
   show (String a) = show a
-  show (Bool a) = show a
-  show (Character a) = show a
+  show (List a) = show a
+  show (Complex z@(a :+ b)) = show a ++ " " ++ show b ++ "i"
+--  show Complex (a :+ b) = show a ++ " " ++ show b ++ "i"
 
 instance Eq LispVal where
-   String x    == String y    = x == y
-   Number x    == Number y    = x == y
-   Float x     == Float y     = x == y
-   Bool x      == Bool y      = x == y
-   Character x == Character y = x == y
+   Bool x           == Bool y           = x == y
+   Character x      == Character y      = x == y
+   String x         == String y         = x == y
+   Number x         == Number y         = x == y
+   Float x          == Float y          = x == y
+   Complex (r :+ i) == Complex (s :+ j) = r == s && i == j
 
 -- using liftM
 --parseNumber = liftM (Number . read) $ many1 digit
@@ -110,6 +116,19 @@ parseFloat = do
   d <- (many1 digit)
   (return . Float . fst . head . readFloat) (z ++ "." ++ d)
 
+toDouble :: LispVal -> Double
+toDouble (Float f) = realToFrac f
+toDouble (Number n) = fromIntegral n
+
+parseComplex :: Parser LispVal
+parseComplex = do
+  r <- (try parseFloat <|> parseDecimal)
+  char '+'
+  i <- (try parseFloat <|> parseDecimal)
+  char 'i'
+
+  return $ Complex (toDouble r :+ toDouble i)
+
 escapedChars = do char '\\'
                   x <- oneOf "\\\"nrt"
                   return $ case x of
@@ -137,6 +156,7 @@ parseString = do
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
         <|> parseString
+        <|> try parseComplex
         <|> try parseFloat
         <|> try parseNumber
         <|> try parseBool
