@@ -5,6 +5,7 @@ import Test.Hspec.Parsec
 import Text.Parsec
 
 import Data.Complex
+import Data.Ratio
 
 import Lib
 
@@ -39,6 +40,9 @@ spec = do
 
     it "parses number value in hex format (with #x prefix)" $ do
       parseExpr' "#xff" `shouldParse` (Number 255)
+
+    it "parses rational number" $ do
+      parseExpr' "10/3" `shouldParse` Ratio (10 % 3)
 
     it "parses complex number" $ do
       parseExpr' "10.2+7i" `shouldParse` Complex (10.2 :+ 7.0)

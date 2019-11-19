@@ -8,6 +8,7 @@ module Lib
     , parseHex
     , parseNumber
     , parseFloat
+    , parseRatio
     , parseComplex
     , parseExpr
     ) where
@@ -15,6 +16,7 @@ module Lib
 import Control.Monad
 import Data.Char (isDigit, digitToInt)
 import Data.Complex
+import Data.Ratio
 import Numeric (readInt, readOct, readHex, readFloat)
 import Text.Parsec.Char
 import Text.ParserCombinators.Parsec hiding (spaces)
@@ -24,6 +26,7 @@ data LispVal = Atom String
              | Character Char
              | Number Integer
              | Float Double
+             | Ratio Rational
              | Complex (Complex Double)
              | String String
              | List [LispVal]
@@ -37,8 +40,8 @@ instance Show LispVal where
   show (Float a) = show a
   show (String a) = show a
   show (List a) = show a
+  show (Ratio a)  = show a
   show (Complex z@(a :+ b)) = show a ++ " " ++ show b ++ "i"
---  show Complex (a :+ b) = show a ++ " " ++ show b ++ "i"
 
 instance Eq LispVal where
    Bool x           == Bool y           = x == y
@@ -47,6 +50,7 @@ instance Eq LispVal where
    Number x         == Number y         = x == y
    Float x          == Float y          = x == y
    Complex (r :+ i) == Complex (s :+ j) = r == s && i == j
+   Ratio x == Ratio y = x == y
 
 -- using liftM
 --parseNumber = liftM (Number . read) $ many1 digit
@@ -120,6 +124,13 @@ toDouble :: LispVal -> Double
 toDouble (Float f) = realToFrac f
 toDouble (Number n) = fromIntegral n
 
+parseRatio :: Parser LispVal
+parseRatio = do
+  x <- many1 digit
+  char '/'
+  y <- many1 digit
+  return $ Ratio (read x % read y)
+
 parseComplex :: Parser LispVal
 parseComplex = do
   r <- (try parseFloat <|> parseDecimal)
@@ -156,6 +167,7 @@ parseString = do
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
         <|> parseString
+        <|> try parseRatio
         <|> try parseComplex
         <|> try parseFloat
         <|> try parseNumber
