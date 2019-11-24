@@ -10,6 +10,7 @@ module Lib
     , parseFloat
     , parseRatio
     , parseComplex
+    , parseList
     , parseExpr
     ) where
 
@@ -18,7 +19,7 @@ import Data.Char (isDigit, digitToInt)
 import Data.Complex
 import Data.Ratio
 import Numeric (readInt, readOct, readHex, readFloat)
-import Text.Parsec.Char
+--import Text.Parsec.Char
 import Text.ParserCombinators.Parsec hiding (spaces)
 
 data LispVal = Atom String
@@ -44,6 +45,7 @@ instance Show LispVal where
   show (Complex z@(a :+ b)) = show a ++ " " ++ show b ++ "i"
 
 instance Eq LispVal where
+   Atom x           == Atom y           = x == y
    Bool x           == Bool y           = x == y
    Character x      == Character y      = x == y
    String x         == String y         = x == y
@@ -51,6 +53,7 @@ instance Eq LispVal where
    Float x          == Float y          = x == y
    Complex (r :+ i) == Complex (s :+ j) = r == s && i == j
    Ratio x == Ratio y = x == y
+   List x == List y = x == y
 
 -- using liftM
 --parseNumber = liftM (Number . read) $ many1 digit
@@ -164,6 +167,10 @@ parseString = do
   char '"'
   return $ String x
 
+parseList :: Parser LispVal
+--parseList = liftM List $ sepBy parseExpr spaces
+parseList = sepBy parseExpr spaces >>= return . List
+
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
         <|> parseString
@@ -171,6 +178,11 @@ parseExpr = parseAtom
         <|> try parseComplex
         <|> try parseFloat
         <|> try parseNumber
+        <|> do
+              char '('
+              x <- try parseList -- <|> parseDottedList
+              char ')'
+              return x
         <|> try parseBool
         <|> try parseCharacter
 

@@ -56,3 +56,9 @@ spec = do
     it "parses character name 'newline'" $ do
       parseExpr' "#\\newline" `shouldParse` (Character '\n')
 
+    it "parses list of numbers" $ do
+      parseExpr' "(42 108)" `shouldParse` (List [Number 42, Number 108])
+
+    it "parses list of atoms" $ do
+      parseExpr' "(hello world)" `shouldParse` (List [Atom "hello", Atom "world"])
+
