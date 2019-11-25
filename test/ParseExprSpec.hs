@@ -62,3 +62,6 @@ spec = do
     it "parses list of atoms" $ do
       parseExpr' "(hello world)" `shouldParse` (List [Atom "hello", Atom "world"])
 
+    it "parses dotted list of atoms" $ do
+      parseExpr' "(hello dotted . world)" `shouldParse` (DottedList [Atom "hello", Atom "dotted"] (Atom "world"))
+

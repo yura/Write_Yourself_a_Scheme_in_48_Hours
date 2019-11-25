@@ -11,6 +11,7 @@ module Lib
     , parseRatio
     , parseComplex
     , parseList
+    , parseDottedList
     , parseExpr
     ) where
 
@@ -41,6 +42,7 @@ instance Show LispVal where
   show (Float a) = show a
   show (String a) = show a
   show (List a) = show a
+  show (DottedList a b) = show a ++ show b
   show (Ratio a)  = show a
   show (Complex z@(a :+ b)) = show a ++ " " ++ show b ++ "i"
 
@@ -54,6 +56,7 @@ instance Eq LispVal where
    Complex (r :+ i) == Complex (s :+ j) = r == s && i == j
    Ratio x == Ratio y = x == y
    List x == List y = x == y
+   DottedList a b  == DottedList c d = a == c && b == d
 
 -- using liftM
 --parseNumber = liftM (Number . read) $ many1 digit
@@ -171,6 +174,13 @@ parseList :: Parser LispVal
 --parseList = liftM List $ sepBy parseExpr spaces
 parseList = sepBy parseExpr spaces >>= return . List
 
+parseDottedList :: Parser LispVal
+--parseList = liftM List $ sepBy parseExpr spaces
+parseDottedList = do
+  head <- endBy parseExpr spaces
+  tail <- char '.' >> spaces >> parseExpr
+  return $ DottedList head tail
+
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
         <|> parseString
@@ -180,7 +190,7 @@ parseExpr = parseAtom
         <|> try parseNumber
         <|> do
               char '('
-              x <- try parseList -- <|> parseDottedList
+              x <- try parseList <|> parseDottedList
               char ')'
               return x
         <|> try parseBool
