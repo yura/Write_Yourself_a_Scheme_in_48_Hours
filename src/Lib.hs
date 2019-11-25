@@ -12,6 +12,7 @@ module Lib
     , parseComplex
     , parseList
     , parseDottedList
+    , parseQuoted
     , parseExpr
     ) where
 
@@ -175,11 +176,16 @@ parseList :: Parser LispVal
 parseList = sepBy parseExpr spaces >>= return . List
 
 parseDottedList :: Parser LispVal
---parseList = liftM List $ sepBy parseExpr spaces
 parseDottedList = do
   head <- endBy parseExpr spaces
   tail <- char '.' >> spaces >> parseExpr
   return $ DottedList head tail
+
+parseQuoted :: Parser LispVal
+parseQuoted = do
+  char '\''
+  x <- parseExpr
+  return $ List [Atom "quoted", x]
 
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
