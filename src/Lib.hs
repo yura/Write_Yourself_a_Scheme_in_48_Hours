@@ -183,9 +183,13 @@ parseDottedList = do
 
 parseQuoted :: Parser LispVal
 parseQuoted = do
-  char '\''
+  quote <- oneOf "'`,"
   x <- parseExpr
-  return $ List [Atom "quoted", x]
+  let atom = case quote of
+        '\'' -> "quoted"
+        '`'  -> "backquoted"
+        ','  -> "unquoted"
+  return $ List [Atom atom, x] where
 
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
