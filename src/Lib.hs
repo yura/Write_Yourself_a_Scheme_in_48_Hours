@@ -13,6 +13,7 @@ module Lib
     , parseList
     , parseDottedList
     , parseQuoted
+    , parseVector
     , parseExpr
     ) where
 
@@ -34,6 +35,7 @@ data LispVal = Atom String
              | String String
              | List [LispVal]
              | DottedList [LispVal] LispVal
+             | Vector [LispVal]
 
 instance Show LispVal where
   show (Atom a) = show a
@@ -46,6 +48,7 @@ instance Show LispVal where
   show (DottedList a b) = show a ++ show b
   show (Ratio a)  = show a
   show (Complex z@(a :+ b)) = show a ++ " " ++ show b ++ "i"
+  show (Vector a) = show a
 
 instance Eq LispVal where
    Atom x           == Atom y           = x == y
@@ -58,6 +61,7 @@ instance Eq LispVal where
    Ratio x == Ratio y = x == y
    List x == List y = x == y
    DottedList a b  == DottedList c d = a == c && b == d
+   Vector a == Vector b = a == b
 
 -- using liftM
 --parseNumber = liftM (Number . read) $ many1 digit
@@ -189,7 +193,14 @@ parseQuoted = do
         '\'' -> "quoted"
         '`'  -> "backquoted"
         ','  -> "unquoted"
-  return $ List [Atom atom, x] where
+  return $ List [Atom atom, x]
+
+parseVector :: Parser LispVal
+parseVector = do
+  string "'#("
+  x <- sepBy parseExpr spaces
+  char ')'
+  return $ Vector x
 
 parseExpr :: Parser LispVal
 parseExpr = parseAtom
@@ -198,6 +209,7 @@ parseExpr = parseAtom
         <|> try parseComplex
         <|> try parseFloat
         <|> try parseNumber
+        <|> try parseVector
         <|> do
               char '('
               x <- try parseList <|> parseDottedList
